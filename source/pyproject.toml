@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "fastapi-mongo-project"
+version = "0.1.0"
+description = ""
+authors = ["kimyaroshenko <kim.yaroshenko@onix-systems.com>"]
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.10"
+fastapi = {extras = ["standard"], version = "^0.115.5"}
+uvicorn = "^0.32.1"
+motor = "^3.6.0"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

@@ -1,0 +1,60 @@
+services:
+  project-backend:
+    restart: unless-stopped
+    container_name: fastapi-mongo-backend
+    build: .
+    expose:
+      - 8000
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./${SOURCE_DIR}:/app
+    env_file:
+      - ${SOURCE_DIR}/.env
+    environment:
+      - CONTAINER_TYPE=master
+      - PYTHONPATH=/app/source
+    networks:
+      - fastapi_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10M"
+        max-file: "5"
+
+  mongodb:
+    container_name: mongo-db
+    image: mongo:5.0
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongodata:/data/db
+      - ./init-mongo.js:/docker-entrypoint-initdb.d/init-mongo.js:ro
+    networks:
+      - fastapi_net
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin
+      MONGO_INITDB_DATABASE: fastapi_db
+
+
+  redis:
+    container_name: redis-cache
+    image: redis:7.0
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    volumes:
+      - cache:/data
+    networks:
+      - fastapi_net
+
+volumes:
+  mongodata:
+    driver: local
+  cache:
+    driver: local
+
+networks:
+  fastapi_net:
