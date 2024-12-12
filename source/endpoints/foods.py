@@ -30,6 +30,6 @@ async def get_foods():
 @router.put("/foods/update/{_id}", status_code=201)
 async def update_food(_id: str, food: Food):
     try:
-        return await FoodsManager.update_document(convert_to_mongo_id(_id), food)
+        return await FoodsManager.update_document_entirely(convert_to_mongo_id(_id), food)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
