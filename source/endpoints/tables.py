@@ -1,8 +1,9 @@
 from fastapi import APIRouter, HTTPException
-from db.managers import TablesManager
+from db.managers import TablesManager, ReservationsManager
 from db.models import Table, TableStatusEnum
 from utils import convert_to_mongo_id
 from typing import Optional
+from datetime import datetime
 
 router = APIRouter()
 
@@ -35,3 +36,12 @@ async def update_table_status(_id: str, status: TableStatusEnum):
         return await TablesManager.update_document(convert_to_mongo_id(_id), {'status': status})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
+
+
+@router.get("/tables/{_id}/reservations/")
+async def get_table_reservations(_id: str):
+    return await ReservationsManager.find_reservations_by_table(_id)
+
+@router.get("/tables/{_id}/reservations/{day}/")
+async def get_table_reservations(_id: str, day: datetime):
+    return await ReservationsManager.find_table_reservations_by_day(_id, datetime)

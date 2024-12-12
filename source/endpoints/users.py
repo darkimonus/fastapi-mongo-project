@@ -6,7 +6,7 @@ from fastapi import Depends, APIRouter, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from jwt.exceptions import InvalidTokenError
 
-from auth.config import ACCESS_TOKEN_EXPIRE_MINUTES
+from auth.conf import ACCESS_TOKEN_EXPIRE_MINUTES
 from auth.utils import create_access_token
 from db.models import Token
 from typing import Optional, Any

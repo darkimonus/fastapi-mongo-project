@@ -12,12 +12,13 @@ from db.models import (
 
 from bson import ObjectId
 from typing import Optional, List, Dict, Any
-from datetime import datetime
+from datetime import datetime, timedelta
 
 
 class BaseManager:
     _collection_name: Optional[str] = None
     model = BaseModel
+    unique_field: Optional[str] = None
 
     @staticmethod
     def serialize(document: dict) -> dict:
@@ -37,7 +38,8 @@ class BaseManager:
 
     @classmethod
     async def find_documents(cls, query: Dict[str, Any] = None,
-                             skip: int = 0, limit: int = 0) -> List[dict]:
+                             skip: int = 0, limit: int = 0,
+                             projection: Optional[Dict[str, int]] = None) -> List[dict]:
         if query:
             fields_errors = cls._check_fields(query)
             if len(fields_errors) > 0:
@@ -63,12 +65,13 @@ class BaseManager:
             return None
 
     @classmethod
-    async def create_document(cls, document: model, field: Optional[str]) -> dict:
+    async def create_document(cls, document: model) -> dict:
         collection = await get_collection(cls._collection_name)
-        if field:
-            if await cls.find_document(field, document.name):
-                raise ValueError(f"{cls.model.__name__} with this "
-                                 f"{field} (that should be unique) already exists.")
+
+        if cls.unique_field:
+            unique_value = getattr(document, cls.unique_field, None)
+            if unique_value and await cls.find_document(cls.unique_field, unique_value):
+                raise ValueError(f"{cls.model.__name__} with this {cls.unique_field} already exists.")
 
         result = await collection.insert_one(document.model_dump())
         return {"message": f"{cls.model.__name__} created",
@@ -128,6 +131,7 @@ class BaseManager:
 class FoodsManager(BaseManager):
     _collection_name = 'food'
     model = Food
+    unique_field = 'name'
 
     @classmethod
     async def find_food_by_id(cls, document_id: ObjectId):
@@ -139,7 +143,7 @@ class FoodsManager(BaseManager):
 
     @classmethod
     async def create_food(cls, document: Food):
-        return await cls.create_document(document, 'name')
+        return await cls.create_document(document)
 
     @classmethod
     async def find_by_kind(cls, kind: str) -> List[dict]:
@@ -149,30 +153,24 @@ class FoodsManager(BaseManager):
 class RestaurantsManager(BaseManager):
     _collection_name = 'restaurants'
     model = Restaurant
+    unique_field = 'address'
 
     @classmethod
     async def create_restaurant(cls, document: Restaurant):
-        return await cls.create_document(document, 'address')
-
-    @classmethod
-    async def find_restaurant(cls, address: str):
-        return await cls.find_document('address', address)
+        return await cls.create_document(document)
 
 
 class TablesManager(BaseManager):
     _collection_name = 'tables'
     model = Table
+    unique_field = 'number'
 
     @classmethod
     async def create_table(cls, document: Table):
-        if await RestaurantsManager.find_restaurant(document.restaurant.address):
-            return await cls.create_document(document, 'number')
+        if await RestaurantsManager.find_document('address', document.restaurant.address):
+            return await cls.create_document(document)
         else:
             raise ValueError(f"Provided {RestaurantsManager.model.__name__} not found.")
-
-    @classmethod
-    async def find_tables_by_restaurant(cls, argument: str):
-        return await cls.find_documents({'restaurant_id': argument})
 
 
 class ReservationsManager(BaseManager):
@@ -180,29 +178,79 @@ class ReservationsManager(BaseManager):
     model = Reservation
 
     @classmethod
-    async def create_reservation(cls, document: Reservation):
+    async def check_overlapping_reservations(cls, table_id: ObjectId, start_time: datetime, end_time: datetime) -> bool:
+        start_check, end_check = check_time(start_time, end_time)
+
+        overlapping_reservations = await cls.find_documents({
+            "table_id": table_id,
+            "status": {"$ne": "cancelled"},
+            "$or": [
+                {"start_time": {"$lt": end_check, "$gte": start_time}},
+                {"end_time": {"$lte": end_time, "$gte": start_check}},
+                {"start_time": {"$lte": start_check}, "end_time": {"$gte": end_check}}
+            ]
+        })
+
+        return bool(overlapping_reservations)
+
+    @classmethod
+    async def create_document(cls, document: Reservation):
         if await TablesManager.find_document('_id', document.table_id):
-            start_check, end_check = check_time(document.start_time, document.end_time)
-
-            overlapping_reservations = await cls.find_documents({
-                "table_id": document.table_id,
-                "status": {"$ne": "cancelled"},
-                "$or": [
-                    {"start_time": {"$lt": end_check, "$gte": document.start_time}},
-                    {"end_time": {"$lte": document.end_time, "$gte": start_check}},
-                    {"start_time": {"$lte": start_check}, "end_time": {"$gte": end_check}}
-                ]
-            })
-
-            if overlapping_reservations:
+            if cls.check_overlapping_reservations(ObjectId(document.table_id), document.start_time, document.end_time):
                 raise ValueError("The table is already reserved for the specified time range.")
-            return await cls.create_document(document, None)
+            return await super().create_document(document)
         else:
             raise ValueError(f"Provided {TablesManager.model.__name__} with _id {document.table_id} not found.")
 
     @classmethod
-    async def find_reservations_by_table(cls, table_id):
-        return await cls.find_document('table_id', table_id)
+    async def find_reservations_by_table(cls, table_id: str):
+        return await cls.find_documents({'table_id': ObjectId(table_id)})
+
+    @classmethod
+    async def find_table_reservations_by_day(cls, table_id: str, date: datetime):
+        start_of_day = datetime(date.year, date.month, date.day)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        return await cls.find_documents({
+            'table_id': ObjectId(table_id),
+            'start_time': {'$lt': end_of_day},
+            'end_time': {'$gte': start_of_day}
+        })
+
+    @classmethod
+    async def find_reservations_by_restaurant(cls, restaurant_id: str) -> List[dict]:
+        tables = await TablesManager.find_documents(
+            {'restaurant_id': ObjectId(restaurant_id)}, projection={'_id': 1})
+
+        if not tables:
+            return []
+
+        table_ids = [table['_id'] for table in tables]
+
+        reservations = await cls.find_documents({'table_id': {'$in': table_ids}})
+
+        return reservations
+
+    @classmethod
+    async def find_restaurant_reservations_by_day(cls, restaurant_id: str, date: datetime) -> List[dict]:
+        start_of_day = datetime(date.year, date.month, date.day)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        tables = await TablesManager.find_documents(
+            {'restaurant_id': ObjectId(restaurant_id)}, projection={'_id': 1})
+
+        if not tables:
+            return []
+
+        table_ids = [table['_id'] for table in tables]
+
+        reservations = await cls.find_documents({
+            'table_id': {'$in': table_ids},
+            'start_time': {'$lt': end_of_day},
+            'end_time': {'$gte': start_of_day}
+        })
+
+        return reservations
 
 
 class OrdersManager(BaseManager):
@@ -219,7 +267,7 @@ class OrdersManager(BaseManager):
     async def create_order(cls, instance: Order):
         table = await TablesManager.find_document('_id', ObjectId(instance.table_id))
         if table:
-            return await cls.create_document(instance, None)
+            return await cls.create_document(instance)
         else:
             raise ValueError(f"Table with _id {Order.table_id} doesn't exist.")
 

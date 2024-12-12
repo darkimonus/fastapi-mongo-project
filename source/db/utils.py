@@ -1,7 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorCollection
 from db.db import MongoDB, MONGO_DB_NAME
 from datetime import timedelta, datetime
-from settings import RESERVATION_BEFORE_AND_AFTER_TIME
+from conf import RESERVATION_BEFORE_AND_AFTER_TIME
 
 
 async def get_collection(collection_name: str) -> AsyncIOMotorCollection:

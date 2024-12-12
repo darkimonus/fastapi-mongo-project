@@ -1,3 +1,3 @@
-import os
+from conf import config
 
-DEFAULT_COUNTRY_CODE = os.getenv("DEFAULT_COUNTRY_CODE", "US")
+DEFAULT_COUNTRY_CODE = config("DEFAULT_COUNTRY_CODE", "US")

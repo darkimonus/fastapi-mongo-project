@@ -1,4 +1,4 @@
-from config import (
+from auth.conf import (
     SECRET_KEY,
     REFRESH_SECRET_KEY,
     ACCESS_TOKEN_EXPIRE_MINUTES,
