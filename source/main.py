@@ -7,6 +7,9 @@ from endpoints.restaurants import router as restaurants_router
 from endpoints.tables import router as tables_router
 from custom_logging.middleware import LoggingMiddleware
 import logging
+from conf import ALLOWED_HOSTS
+
+from starlette.middleware.cors import CORSMiddleware
 
 
 @asynccontextmanager
@@ -27,3 +30,10 @@ app.include_router(foods_router)
 app.include_router(restaurants_router)
 app.include_router(tables_router)
 app.add_middleware(LoggingMiddleware)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=ALLOWED_HOSTS,
+    allow_credentials=True,
+    allow_methods=['*'],
+    allow_headers=['*'],
+)
