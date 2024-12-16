@@ -17,6 +17,18 @@ from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
 from random import randint
 
+"""
+This function
+
+Parameters:
+- 
+
+Raises:
+
+Returns:
+
+"""
+
 
 class BaseManager:
     _collection_name: Optional[str] = None
@@ -32,6 +44,21 @@ class BaseManager:
     async def find_documents(cls, query: Dict[str, Any] = None,
                              skip: int = 0, limit: int = 0,
                              projection: Optional[Dict[str, int]] = None) -> List[dict]:
+        """
+        This function uses motor collection to find documents in _collection_name collection using provided
+        arguments.
+
+        Parameters:
+        - query: mongodb query
+        - skip: how many documents motor should skip
+        - limit: how many documents should be retrieved from db
+        - projection: which fields should be retrieved
+
+        Raises:
+
+        Returns:
+        List of dictionaries that contain documents info.
+        """
 
         collection = await get_collection(cls._collection_name)
         cursor = collection.find(query or {}, projection=projection).skip(skip).limit(limit)
@@ -39,6 +66,19 @@ class BaseManager:
 
     @classmethod
     async def find_document(cls, field: str, value: str | ObjectId) -> Optional[dict]:
+        """
+        This function uses motor collection to find document in _collection_name collection using provided
+        field and value.
+
+        Parameters:
+        - field: field that will be used to search for document
+        - value: value of provided field
+
+        Raises:
+
+        Returns:
+        Dictionary with document data or None if no document has been found.
+        """
         if field == '_id':
             value = ObjectId(value)
 
@@ -51,6 +91,19 @@ class BaseManager:
 
     @classmethod
     async def create_document(cls, document: model) -> dict:
+        """
+        This function uses motor collection to create document in _collection_name collection using provided
+        arguments. It also checks if there is another object with unique field for this collection.
+
+        Parameters:
+        - document: object of manager model that contains document information which will be inserted
+
+        Raises:
+        - ValueError: if another document with the same unique field value is present in collection
+
+        Returns:
+        Dictionary with success message.
+        """
         collection = await get_collection(cls._collection_name)
 
         if cls.unique_field:
@@ -60,10 +113,24 @@ class BaseManager:
 
         result = await collection.insert_one(document.model_dump())
         return {"message": f"{cls.model.__name__} created",
-                "id": str(result.inserted_id)}
+                "_id": str(result.inserted_id)}
 
     @classmethod
     async def update_document_entirely(cls, document_id: ObjectId, document: model):
+        """
+        This function uses motor collection to entirely update document in _collection_name collection using provided
+        document_id and pydantic model object.
+
+        Parameters:
+        - document_id: _id of document that should be updated
+        - document: object of manager model that contains document information which will be inserted
+
+        Raises:
+        - ValueError: if document with provided _id doesn't exist
+
+        Returns:
+        Dictionary with success message.
+        """
         collection = await get_collection(cls._collection_name)
 
         existing_document = await cls.find_document('_id', document_id)
@@ -82,6 +149,20 @@ class BaseManager:
 
     @classmethod
     async def update_document(cls, document_id: ObjectId, update_data: dict):
+        """
+        This function uses motor collection to partially update document in _collection_name collection using provided
+        document_id and update_data dictionary.
+
+        Parameters:
+        - document_id: _id of document that should be updated
+        - update_data: dictionary that contains fields and their new values
+
+        Raises:
+        - ValueError: if document with provided _id doesn't exist
+
+        Returns:
+        Dictionary with success message.
+        """
         collection = await get_collection(cls._collection_name)
 
         existing_document = await cls.find_document('_id', document_id)
@@ -99,6 +180,19 @@ class BaseManager:
 
     @classmethod
     async def delete_document(cls, field: str, value: str | ObjectId) -> str:
+        """
+        This function uses motor collection to delete document in _collection_name collection using provided
+        field and it's value.
+
+        Parameters:
+        - field: field that will be used to search for document
+        - value: value of provided field
+
+        Raises:
+
+        Returns:
+        Success or fail message.
+        """
         if field == '_id':
             value = ObjectId(value)
 
@@ -275,11 +369,23 @@ class PhoneCodesManager(BaseManager):
 
     @classmethod
     async def setup_ttl_index(cls):
+        """
+        This function ensures that all documents in phone_codes collection will be deleted in 5 minutes.
+        """
         collection = await get_collection(cls._collection_name)
         await collection.create_index("created_at", expireAfterSeconds=300)
 
     @classmethod
     async def generate_code(cls, phone_number: str) -> str:
+        """
+        This function generates and saves to db code that will be sent to user for authentication purpose.
+
+        Parameters:
+        - phone_number: number of user's phone
+
+        Returns:
+        Code that will be sent to user.
+        """
         code = str(randint(1000, 9999))
         document = cls.model(phone_number=phone_number, code=code)
         await cls.create_document(document)
@@ -287,6 +393,16 @@ class PhoneCodesManager(BaseManager):
 
     @classmethod
     async def verify_code(cls, phone_number: str, code: str) -> bool:
+        """
+        This function attempts to find document with provided code and phone number in phone_codes collection.
+
+        Parameters:
+        - phone_number: number of user's phone
+        - code: code that was sent to user
+
+        Returns:
+        True if code is valid, false if code was deleted, doesn't exist or is invalid.
+        """
         document = await cls.find_document('phone_number', phone_number)
         if document and document['code'] == code:
             await cls.delete_document('phone_number', phone_number)
