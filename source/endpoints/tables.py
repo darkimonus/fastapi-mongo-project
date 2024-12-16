@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 from db.managers import TablesManager, ReservationsManager
 from db.models import Table, TableStatusEnum
 from utils import convert_to_mongo_id

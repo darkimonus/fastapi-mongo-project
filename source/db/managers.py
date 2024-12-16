@@ -8,11 +8,14 @@ from db.models import (
     Reservation,
     OrderedFood,
     Order,
+    User,
+    PhoneAuthModel,
 )
 
 from bson import ObjectId
 from typing import Optional, List, Dict, Any
 from datetime import datetime, timedelta
+from random import randint
 
 
 class BaseManager:
@@ -26,36 +29,18 @@ class BaseManager:
         return document
 
     @classmethod
-    def _check_fields(cls, query: Dict[str, str | ObjectId]):
-        """
-        This method is designed to check query for fields that doesn't exist.
-        """
-        errors = []
-        for field in query.keys():
-            if field != '_id' and field not in cls.model.model_fields:
-                errors.append(field)
-        return errors
-
-    @classmethod
     async def find_documents(cls, query: Dict[str, Any] = None,
                              skip: int = 0, limit: int = 0,
                              projection: Optional[Dict[str, int]] = None) -> List[dict]:
-        if query:
-            fields_errors = cls._check_fields(query)
-            if len(fields_errors) > 0:
-                raise ValueError(f"{cls.model.__name__} doesn't have this fields {fields_errors}")
 
         collection = await get_collection(cls._collection_name)
-        cursor = collection.find(query or {}).skip(skip).limit(limit)
+        cursor = collection.find(query or {}, projection=projection).skip(skip).limit(limit)
         return [cls.serialize(doc) async for doc in cursor]
 
     @classmethod
     async def find_document(cls, field: str, value: str | ObjectId) -> Optional[dict]:
         if field == '_id':
             value = ObjectId(value)
-        fields_errors = cls._check_fields({field: value})
-        if len(fields_errors) > 0:
-            raise ValueError(f"{cls.model.__name__} doesn't have this fields {fields_errors}")
 
         collection = await get_collection(cls._collection_name)
         document = await collection.find_one({field: value})
@@ -116,9 +101,6 @@ class BaseManager:
     async def delete_document(cls, field: str, value: str | ObjectId) -> str:
         if field == '_id':
             value = ObjectId(value)
-        fields_errors = cls._check_fields({field: value})
-        if len(fields_errors) > 0:
-            raise ValueError(f"{cls.model.__name__} doesn't have this fields {fields_errors}")
 
         collection = await get_collection(cls._collection_name)
         result = await collection.delete_one({field: value})
@@ -274,3 +256,49 @@ class OrdersManager(BaseManager):
     @classmethod
     async def update_order_status(cls, order_id: str, status: str):
         return await cls.update_document(ObjectId(order_id), {'status': status})
+
+    @classmethod
+    async def find_table_orders_by_day(cls, table_id: str, date: datetime):
+        start_of_day = datetime(date.year, date.month, date.day)
+        end_of_day = start_of_day + timedelta(days=1)
+
+        return await cls.find_documents({
+            'table_id': ObjectId(table_id),
+            'date': {'$gte': start_of_day, '$lt': end_of_day}
+        })
+
+
+class PhoneCodesManager(BaseManager):
+    model = PhoneAuthModel
+    _collection_name = 'phone_codes'
+    unique_field = 'phone_number'
+
+    @classmethod
+    async def setup_ttl_index(cls):
+        collection = await get_collection(cls._collection_name)
+        await collection.create_index("created_at", expireAfterSeconds=300)
+
+    @classmethod
+    async def generate_code(cls, phone_number: str) -> str:
+        code = str(randint(1000, 9999))
+        document = cls.model(phone_number=phone_number, code=code)
+        await cls.create_document(document)
+        return code
+
+    @classmethod
+    async def verify_code(cls, phone_number: str, code: str) -> bool:
+        document = await cls.find_document('phone_number', phone_number)
+        if document and document['code'] == code:
+            await cls.delete_document('phone_number', phone_number)
+            return True
+        return False
+
+    @classmethod
+    async def delete_expired_code(cls, phone_number: str):
+        await cls.delete_document('phone_number', phone_number)
+
+
+class UsersManager(BaseManager):
+    model = User
+    _collection_name = 'users'
+    unique_field = 'phone_number'

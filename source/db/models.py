@@ -1,4 +1,4 @@
-from pydantic import BaseModel, PositiveFloat, EmailStr, HttpUrl
+from pydantic import BaseModel, PositiveFloat, EmailStr, HttpUrl, Field
 from pydantic_extra_types.phone_numbers import PhoneNumber
 from typing import List, Optional, Dict
 from datetime import datetime
@@ -9,9 +9,19 @@ PhoneNumber.phone_format = 'E164'  # 'INTERNATIONAL', 'NATIONAL'
 PhoneNumber.default_region_code = DEFAULT_COUNTRY_CODE
 
 
+class PhoneAuthModel(BaseModel):
+    phone_number: PhoneNumber
+    code: Optional[str]
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class Token(BaseModel):
     access_token: str
     token_type: str
+
+
+class TokenData(BaseModel):
+    phone: str | None = None
 
 
 class TableStatusEnum(str, Enum):
