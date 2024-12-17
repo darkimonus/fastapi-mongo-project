@@ -5,10 +5,10 @@ from utils import convert_to_mongo_id
 from typing import Optional
 from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(prefix='/tables')
 
 
-@router.post("/tables/")
+@router.post("/")
 async def create_table(instance: Table):
     try:
         return await TablesManager.create_table(instance)
@@ -16,13 +16,13 @@ async def create_table(instance: Table):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/tables/")
+@router.get("//")
 async def get_tables():
     instances = await TablesManager.find_documents()
     return instances
 
 
-@router.get("/tables/{_id}")
+@router.get("/{_id}")
 async def get_table(_id: str):
     document = await TablesManager.find_document('_id', _id)
     if not document:
@@ -30,7 +30,7 @@ async def get_table(_id: str):
     return document
 
 
-@router.put("/tables/{_id}", status_code=201)
+@router.put("/{_id}", status_code=201)
 async def update_table_status(_id: str, status: TableStatusEnum):
     try:
         return await TablesManager.update_document(convert_to_mongo_id(_id), {'status': status})
@@ -38,10 +38,11 @@ async def update_table_status(_id: str, status: TableStatusEnum):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/tables/{_id}/reservations/")
+@router.get("/{_id}/reservations/")
 async def get_table_reservations(_id: str):
     return await ReservationsManager.find_reservations_by_table(_id)
 
-@router.get("/tables/{_id}/reservations/{day}/")
+
+@router.get("/{_id}/reservations/{day}/")
 async def get_table_reservations(_id: str, day: datetime):
-    return await ReservationsManager.find_table_reservations_by_day(_id, datetime)
+    return await ReservationsManager.find_table_reservations_by_day(_id, day)

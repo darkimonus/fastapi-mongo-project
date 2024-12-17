@@ -3,11 +3,11 @@ from pymongo.errors import ConnectionFailure
 from conf import config
 import logging
 
-MONGO_HOST = config("MONGO_HOST", "localhost")
-MONGO_PORT = int(config("MONGO_PORT", 27017))
-MONGO_USER = config("MONGO_INITDB_ROOT_USERNAME", "admin")
-MONGO_PASS = config("MONGO_INITDB_ROOT_PASSWORD", "admin")
-MONGO_DB_NAME = config("MONGO_DB_NAME", "fastapi_db")
+MONGO_HOST = config("MONGO_HOST", default="localhost")
+MONGO_PORT = int(config("MONGO_PORT", default=27017))
+MONGO_USER = config("MONGO_INITDB_ROOT_USERNAME", default="admin")
+MONGO_PASS = config("MONGO_INITDB_ROOT_PASSWORD", default="admin")
+MONGO_DB_NAME = config("MONGO_DB_NAME", default="fastapi_db")
 
 
 class MongoDB:

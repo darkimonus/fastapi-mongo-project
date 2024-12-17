@@ -2,29 +2,40 @@ from auth.conf import (
     SECRET_KEY,
     REFRESH_SECRET_KEY,
     ACCESS_TOKEN_EXPIRE_MINUTES,
+    REFRESH_TOKEN_EXPIRE_MINUTES,
     ALGORITHM,
+    config,
 )
-from auth.tasks import send_auth_code
+from auth.tasks import send_sms_code
 from fastapi import HTTPException, Depends, status
 from fastapi.security import OAuth2PasswordBearer
 import jwt
 from jwt.exceptions import InvalidTokenError
 from datetime import datetime, timedelta, timezone
 from typing import Annotated
-from db.models import Token, TokenData
-from db.managers import UsersManager
+from db.models import User, TokenData
+from db.managers import UsersManager, PhoneCodesManager
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 
-def request_auth_code(phone: str):
-    send_auth_code(phone)
+async def request_auth_code(phone: str):
+    code = await PhoneCodesManager.generate_code(phone)
+    send_sms_code.delay(phone, code)
 
 
-def authenticate_user(phone: str):
-    pass
+async def authenticate_user(phone: str, code: str):
+    if config.get('USE_SMS_VERIFICATION'):
+        verified = await PhoneCodesManager.verify_code(phone, code)
+        if verified:
+            access_token = create_access_token({'phone': phone}, timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+            refresh_token = create_refresh_token({'phone': phone}, timedelta(minutes=REFRESH_TOKEN_EXPIRE_MINUTES))
+            return {'access_token': access_token, 'refresh_token': refresh_token}
+        else:
+            raise ValueError('Invalid token')
 
 
+# Add refresh_token creation
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
@@ -33,6 +44,17 @@ def create_access_token(data: dict, expires_delta: timedelta | None = None):
         expire = datetime.now(timezone.utc) + timedelta(minutes=15)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    return encoded_jwt
+
+
+def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
+    to_encode = data.copy()
+    if expires_delta:
+        expire = datetime.now(timezone.utc) + expires_delta
+    else:
+        expire = datetime.now(timezone.utc) + timedelta(minutes=1440)
+    to_encode.update({"exp": expire})
+    encoded_jwt = jwt.encode(to_encode, REFRESH_SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
 
@@ -52,5 +74,5 @@ async def get_current_user(token: Annotated[str, Depends(oauth2_scheme)]):
         raise credentials_exception
     user = await UsersManager.find_document('phone', token_data.phone)
     if user is None:
-        raise credentials_exception
+        user = await UsersManager.create_document(User(phone_number=phone))
     return user
