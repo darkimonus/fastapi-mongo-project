@@ -2,11 +2,12 @@ from fastapi import APIRouter, HTTPException
 from db.managers import RestaurantsManager, ReservationsManager, TablesManager
 from db.models import Restaurant, TableStatusEnum
 from utils import convert_to_mongo_id
+from datetime import datetime
 
-router = APIRouter()
+router = APIRouter(prefix='/restaurants')
 
 
-@router.post("/restaurants/")
+@router.post("/")
 async def create_restaurant(instance: Restaurant):
     try:
         return await RestaurantsManager.create_restaurant(instance)
@@ -14,13 +15,13 @@ async def create_restaurant(instance: Restaurant):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-@router.get("/restaurants/")
+@router.get("/")
 async def get_restaurants():
     instances = await RestaurantsManager.find_documents()
     return instances
 
 
-@router.get("/restaurants/{address}")
+@router.get("/{address}")
 async def get_restaurant(_id: str):
     instance = await RestaurantsManager.find_document('_id', _id)
     if not instance:
@@ -28,22 +29,28 @@ async def get_restaurant(_id: str):
     return instance
 
 
-@router.get('/restaurants/{_id}/reservations/')
+@router.get('/{_id}/reservations/')
 async def get_restaurant_reservations(_id: str):
-    instances = await ReservationsManager.find_documents()
+    instances = await ReservationsManager.find_reservations_by_restaurant(_id)
     return instances
 
 
-@router.get("/restaurants/{_id}/tables/")
-async def get_restaurant_tables_by_id(_id: str) -> list:
+@router.get('/{_id}/reservations/{day}/')
+async def get_restaurant_reservations_by_day(_id: str, day: datetime):
+    instances = await ReservationsManager.find_restaurant_reservations_by_day(_id, day)
+    return instances
+
+
+@router.get("/{_id}/tables/")
+async def get_restaurant_tables(_id: str) -> list:
     try:
-        instances = await TablesManager.find_tables_by_restaurant(_id)
+        instances = await TablesManager.find_documents({'restaurant_id': convert_to_mongo_id(_id)})
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
     return instances
 
 
-@router.get("/restaurants/{_id}/tables/{status}/")
+@router.get("/{_id}/tables/{status}/")
 async def get_restaurant_tables_by_status(_id: str, status: TableStatusEnum):
     try:
         instances = await TablesManager.find_documents(
