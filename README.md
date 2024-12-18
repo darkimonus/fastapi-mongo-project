@@ -16,7 +16,7 @@ The API also provides administrative endpoints, allowing users to generate and v
 - Poetry is used for dependency management.  
 - Redis is used as a message broker and caching tool.  
 - Celery is used for interacting with services that provide SMS messaging and task scheduling.  
-- Security is ensured using CORS and JWT tokens.  
+- Security is ensured using CORS and JWT tokens. (Currently security and authentication are being developed.)  
 
 
 ## Setting up
@@ -28,3 +28,4 @@ To run the app use make commands below:
 - stop : stops containers.    
 - restart : restarts containers.    
 - poetry: does all poetry commands without needing to go to source dir
+- generate-keys: generates private and public keys for access and refresh tokens
