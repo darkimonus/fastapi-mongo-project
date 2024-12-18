@@ -7,7 +7,7 @@ from endpoints.tables import router as tables_router
 from endpoints.auth import router as auth_router
 from custom_logging.middleware import LoggingMiddleware
 import logging
-from conf import ALLOWED_HOSTS
+from conf import settings
 
 from starlette.middleware.cors import CORSMiddleware
 
@@ -32,7 +32,7 @@ app.include_router(auth_router)
 app.add_middleware(LoggingMiddleware)
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=ALLOWED_HOSTS,
+    allow_origins=settings.cors_settings.allowed_hosts,
     allow_credentials=True,
     allow_methods=['*'],
     allow_headers=['*'],

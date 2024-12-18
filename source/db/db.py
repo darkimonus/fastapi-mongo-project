@@ -1,13 +1,7 @@
 from motor.motor_asyncio import AsyncIOMotorClient
 from pymongo.errors import ConnectionFailure
-from conf import config
+from conf import settings as s
 import logging
-
-MONGO_HOST = config("MONGO_HOST", default="localhost")
-MONGO_PORT = int(config("MONGO_PORT", default=27017))
-MONGO_USER = config("MONGO_INITDB_ROOT_USERNAME", default="admin")
-MONGO_PASS = config("MONGO_INITDB_ROOT_PASSWORD", default="admin")
-MONGO_DB_NAME = config("MONGO_DB_NAME", default="fastapi_db")
 
 
 class MongoDB:
@@ -19,7 +13,7 @@ class MongoDB:
             Initialize MongoDB connection
         """
         MongoDB.client = AsyncIOMotorClient(
-            f"mongodb://{MONGO_USER}:{MONGO_PASS}@{MONGO_HOST}:{MONGO_PORT}/{MONGO_DB_NAME}"
+            f"mongodb://{s.db.mongo_user}:{s.db.mongo_pass}@{s.db.mongo_host}:{s.db.mongo_port}/{s.db.mongo_db_name}"
         )
         logger = logging.getLogger('info')
         try:

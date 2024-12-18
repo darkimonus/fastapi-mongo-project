@@ -1,17 +1,16 @@
 from twilio.rest import Client
-from conf import config
+from conf import settings
 from celery_conf import celery_app
 from custom_logging.middleware import logger
 
-sms_service = config.get('DEFAULT_SMS_SERVICE')
-account_sid = config.get('TWILIO_SID')
-auth_token = config.get('TWILIO_SECRET')
-sender_phone = config.get('TWILIO_SENDER_PHONE')
-client = Client(account_sid, auth_token)
+client = Client(
+    account_sid=settings.twilio.twilio_sid,
+    password=settings.twilio.twilio_auth_token
+)
 
 
 @celery_app.task(bind=True)
-def send_sms_code(phone_number: str, code: str, service_name: str = sms_service):
+def send_sms_code(phone_number: str, code: str, service_name: str = 'TWILIO'):
     if service_name == 'TWILIO':
         message = client.messages.create(
             body=f'Your verification code is {code}',
@@ -20,4 +19,4 @@ def send_sms_code(phone_number: str, code: str, service_name: str = sms_service)
         )
         return message
     else:
-        raise ValueError(f"Sms service named {sms_service} doesn't exist or is not supported.")
+        raise ValueError(f"Sms service named {service_name} doesn't exist or is not supported.")

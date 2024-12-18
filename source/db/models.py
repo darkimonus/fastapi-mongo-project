@@ -3,10 +3,10 @@ from pydantic_extra_types.phone_numbers import PhoneNumber
 from typing import List, Optional, Dict
 from datetime import datetime
 from enum import Enum
-from db.conf import DEFAULT_COUNTRY_CODE
+from conf import settings
 
 PhoneNumber.phone_format = 'E164'  # 'INTERNATIONAL', 'NATIONAL'
-PhoneNumber.default_region_code = DEFAULT_COUNTRY_CODE
+PhoneNumber.default_region_code = settings.sms.default_country_code
 
 
 class VerificationRequest(BaseModel):
