@@ -112,8 +112,7 @@ class BaseManager:
                 raise ValueError(f"{cls.model.__name__} with this {cls.unique_field} already exists.")
 
         result = await collection.insert_one(document.model_dump())
-        return {"message": f"{cls.model.__name__} created",
-                "_id": str(result.inserted_id)}
+        return {"_id": str(result.inserted_id)}
 
     @classmethod
     async def update_document_entirely(cls, document_id: ObjectId, document: model):

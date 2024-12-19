@@ -17,7 +17,7 @@ async def get_verification_code(phone: PhoneNumber):
 
 
 @router.post('/')
-async def authenticate_for_token(request: VerificationRequest):
+async def authenticate_for_tokens(request: VerificationRequest):
     try:
         tokens = await authenticate_user(request.phone, request.code)
         return tokens
