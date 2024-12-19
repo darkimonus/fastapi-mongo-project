@@ -23,3 +23,18 @@ async def authenticate_for_token(request: VerificationRequest):
         return tokens
     except ValueError as e:
         raise HTTPException(status_code=401, detail=str(e))
+
+
+@router.post('/refresh')
+async def refresh_access_token(request: RefreshTokenRequest):
+    try:
+        # Валидируем refresh_token
+        payload = validate_refresh_token(request.refresh_token)
+
+        # Создаём новый access_token
+        new_access_token = create_access_token(data={"sub": payload["sub"]})
+        return {"access_token": new_access_token, "token_type": "bearer"}
+    except HTTPException as e:
+        raise e
+    except Exception:
+        raise HTTPException(status_code=400, detail="Could not refresh access token")

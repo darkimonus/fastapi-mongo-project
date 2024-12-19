@@ -66,7 +66,7 @@ restart: ## RUN: restart containers
 
 .PHONY: generate-keys
 generate-keys:
-	@mkdir -p .source/certs
+	@mkdir -p source/certs
 	@printf "\033[1;33mGenerating keys for access tokens...\033[0m\n"
 	@openssl genrsa -out source/certs/jwt-private.pem 2048
 	@openssl rsa -in source/certs/jwt-private.pem -outform PEM -pubout -out source/certs/jwt-public.pem

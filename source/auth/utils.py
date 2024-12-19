@@ -31,16 +31,15 @@ async def authenticate_user(phone: str, code: str):
             )
             return {'access_token': access_token, 'refresh_token': refresh_token}
         else:
-            raise ValueError('Invalid token')
+            raise ValueError('Invalid code.')
 
 
-# Add refresh_token creation
 def create_access_token(data: dict, expires_delta: timedelta | None = None):
     to_encode = data.copy()
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=15)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.auth_jwt.access_token_expire_minutes)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
         to_encode,
@@ -55,7 +54,7 @@ def create_refresh_token(data: dict, expires_delta: timedelta | None = None):
     if expires_delta:
         expire = datetime.now(timezone.utc) + expires_delta
     else:
-        expire = datetime.now(timezone.utc) + timedelta(minutes=1440)
+        expire = datetime.now(timezone.utc) + timedelta(minutes=settings.auth_jwt.refresh_token_expire_minutes)
     to_encode.update({"exp": expire})
     encoded_jwt = jwt.encode(
         to_encode,
