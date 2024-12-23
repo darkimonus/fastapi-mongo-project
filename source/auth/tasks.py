@@ -1,6 +1,6 @@
 from twilio.rest import Client
 from conf import settings
-from celery_conf import celery_app
+from celery_app import celery_app
 from custom_logging.middleware import logger
 
 client = Client(

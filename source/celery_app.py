@@ -5,8 +5,9 @@ CELERY_NAME = settings.celery.celery_name
 REDIS_HOST = settings.redis.redis_host
 REDIS_PORT = settings.redis.redis_port
 REDIS_PASSWORD = settings.redis.redis_password
-if REDIS_PASSWORD:
-    REDIS_URL = f'redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0'
+print(f"\n\n\n REDIS_PASSWORD: {repr(REDIS_PASSWORD)} \n\n\n")
+if REDIS_PASSWORD is not None:
+    REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
 else:
     REDIS_URL = f'redis://{REDIS_HOST}:{REDIS_PORT}/0'
 

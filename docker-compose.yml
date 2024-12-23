@@ -50,6 +50,47 @@ services:
     networks:
       - fastapi_net
 
+  celery:
+    build: .
+    volumes:
+      - ./${SOURCE_DIR}:/app
+    env_file:
+      - ${SOURCE_DIR}/.env
+    environment:
+      - CONTAINER_TYPE=worker
+      - CELERY_BROKER=redis://redis:${REDIS_PORT}/1
+      - CELERY_BACKEND=redis://redis:${REDIS_PORT}/1
+    restart: unless-stopped
+    depends_on:
+      - project-backend
+      - redis
+      - mongodb
+    networks:
+      - fastapi_net
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10M"
+        max-file: "5"
+
+  celery_beat:
+    build: .
+    volumes:
+      - ./${SOURCE_DIR}:/app
+    env_file:
+      - ${SOURCE_DIR}/.env
+    environment:
+      - CONTAINER_TYPE=beat
+      - CELERY_BROKER=redis://redis:${REDIS_PORT}/1
+      - CELERY_BACKEND=redis://redis:${REDIS_PORT}/1
+    restart: unless-stopped
+    depends_on:
+      - redis
+      - project-backend
+      - mongodb
+    networks:
+      - fastapi_net
+
 volumes:
   mongodata:
     driver: local
